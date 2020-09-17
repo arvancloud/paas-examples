@@ -1,0 +1,35 @@
+kind: "BuildConfig"
+apiVersion: "v1"
+metadata:
+  name: "shop-build" 
+spec:
+  runPolicy: "Serial" 
+  triggers: 
+    - type: "GitLab"
+      gitlab:
+        secretReference:
+           name: "webhooksecret"
+    - type: ConfigChange
+  source: 
+    git:
+      uri: "https://my-gitlab-my-project-name.apps.ir-thr-at1.arvan.run/example/onlineshop.git"
+    sourceSecret:
+      name: gitsecret
+  strategy: 
+    dockerStrategy:
+      forcePull: true 
+  output:
+    to:
+      kind: "DockerImage"
+      name: "my-registry-my-project-name.apps.ir-thr-at1.arvan.run/online-shop:latest"
+    pushSecret:
+      name: "registrysecret"      
+  resources:
+    limits:
+      cpu: 1500m
+      ephemeral-storage: 1G
+      memory: 600M
+    requests:
+      cpu: 1500m
+      ephemeral-storage: 1G
+      memory: 600M

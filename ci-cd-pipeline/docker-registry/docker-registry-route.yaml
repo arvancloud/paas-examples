@@ -1,0 +1,19 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  annotations:
+    template.openshift.io/expose-uri: http://{.spec.host}{.spec.path}
+  labels:
+    app: my-registry-svc
+  name: my-registry-svc
+spec:
+  host: my-registry-my-project-name.apps.ir-thr-at1.arvan.run
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+  to:
+    kind: Service
+    name: my-registry-svc
+    weight: 100
+  wildcardPolicy: None

@@ -1,0 +1,65 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: my-registry
+  name: my-registry
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: my-registry
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: my-registry
+    spec:
+      containers:
+      - env:
+        - name: REGISTRY_AUTH
+          value: htpasswd
+        - name: REGISTRY_AUTH_HTPASSWD_REALM
+          value: Registry Realm
+        - name: REGISTRY_AUTH_HTPASSWD_PATH
+          value: /auth/htpasswd
+        image: registry
+        name: my-registry
+        ports:
+        - containerPort: 5000
+        resources:
+          limits:
+            cpu: '0.5'
+            ephemeral-storage: 0.5G
+            memory: 0.5G
+          requests:
+            cpu: '0.5'
+            ephemeral-storage: 0.5G
+            memory: 0.5G
+        volumeMounts:
+        - mountPath: /etc/docker/registry/config.yml
+          name: my-registryconfig
+          subPath: config.yml
+        - mountPath: /auth/htpasswd
+          name: my-registryauth
+          subPath: htpasswd
+        - mountPath: /var/lib/registry
+          name: my-registry-vol
+      restartPolicy: Always
+      volumes:
+      - configMap:
+          items:
+          - key: my-registryconfig
+            path: config.yml
+          name: my-registryconfig
+        name: my-registryconfig
+      - configMap:
+          items:
+          - key: htpasswd
+            path: htpasswd
+          name: my-registryauth
+        name: my-registryauth
+      - name: my-registry-vol
+        persistentVolumeClaim:
+          claimName: my-registry-vol

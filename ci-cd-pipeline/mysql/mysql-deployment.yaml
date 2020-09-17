@@ -1,0 +1,70 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: my-mysql
+  name: my-mysql
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: my-mysql
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: my-mysql
+    spec:
+      containers:
+      - env:
+        - name: MYSQL_ROOT_PASSWORD
+          value: SOMESTRONGMYSQLPASSWORD
+        image: mariadb:10.4.12
+        name: my-mysql
+        ports:
+        - containerPort: 3306
+          protocol: TCP
+        resources:
+          limits:
+            cpu: '0.5'
+            ephemeral-storage: 0.5G
+            memory: 0.5G
+          requests:
+            cpu: '0.5'
+            ephemeral-storage: 0.5G
+            memory: 0.5G
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+        - mountPath: /var/lib/mysql
+          name: my-mysql-vol
+      - env:
+        - name: PMA_HOST
+          value: 127.0.0.1
+        - name: PMA_PORT
+          value: "3306"
+        - name: UPLOAD_LIMIT
+          value: "2480000000"
+        image: phpmyadmin/phpmyadmin:latest
+        name: my-mysql-phpmyadmin
+        ports:
+        - containerPort: 80
+          protocol: TCP
+        resources:
+          limits:
+            cpu: '0.5'
+            ephemeral-storage: 0.5G
+            memory: 0.5G
+          requests:
+            cpu: '0.5'
+            ephemeral-storage: 0.5G
+            memory: 0.5G
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      volumes:
+      - name: my-mysql-vol
+        persistentVolumeClaim:
+          claimName: my-mysql-vol

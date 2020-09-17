@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-registryauth
+data:
+  htpasswd: |
+    admin:$2y$05$JZXUw02cBXGhKrkQutTzwe7iQakZasyXO18C/GjAoF4iN6pNaxl2i

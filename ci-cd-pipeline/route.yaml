@@ -1,0 +1,19 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: online-shop
+  labels:
+    app: online-shop-route
+  annotations:
+spec:
+  host: online-shop-my-project-name.apps.ir-thr-at1.arvan.run
+  port:
+    targetPort: http
+  tls:
+    insecureEdgeTerminationPolicy: Allow
+    termination: edge
+  to:
+    kind: Service
+    name: online-shop-service
+    weight: 100
+  wildcardPolicy: None

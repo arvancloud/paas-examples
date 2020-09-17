@@ -1,0 +1,265 @@
+# Complete CI/CD Pipeline with Arvan PaaS and Gitlab
+
+In this example we will deploy all elements needed to deploy a CI/CD pipeline on ArvanCloud PaaS.
+
+You don't have to deploy all applications we describe here and you can use a selfhosted or a cloud versions of these services.
+
+This example is based on [this article](https://www.arvancloud.com/docs/%D9%BE%D8%A7%DB%8C%D9%BE%D9%84%D8%A7%DB%8C%D9%86-cicd-%D9%81%D8%B1%D9%88%D8%B4%DA%AF%D8%A7%D9%87-%D8%A2%D9%86%D9%84%D8%A7%DB%8C%D9%86-paas-%D8%A7%D8%A8%D8%B1%D8%A2%D8%B1%D9%88%D8%A7%D9%86/#%D8%A7%DB%8C%D8%AC%D8%A7%D8%AF_Dockerfile_%D9%88_%D8%A7%D8%B1%D8%B3%D8%A7%D9%84_%DA%A9%D8%AF_%D8%A8%D9%87_gitlab).
+
+## Introduction
+
+You need to know about how to dockerize your application (adding a dockerfile to your project). If you don't know how to make one, probably it's going to take a google search to find a sample dockerfile for any type of applications (for example search for `php laravel dockerfile` or `dockerize python django`).
+
+In this example, we are going to clone a sample web application, deploy a Gitlab to use as private repository on PaaS. Deploy a docker registry. Make a build for the application, and deploy it on PaaS.
+
+**Notice:** make sure you downloaded Arvan CLI and place it on your PATH. Also you need to login to cli using an api-key (check root README of this repo).
+
+**Notice:** it's better to clone this project in your local directory, since you will need to edit this manifests in this example.
+
+## Instruction
+
+### Clone the Sample project
+
+We are going to use `OpenCart` as an example for our web application so we clone it:
+
+```bash
+git clone https://github.com/opencart/opencart
+```
+
+Since we are going to customize our project, we are going to deploy a Gitlab. If you already have one, or you are going to use a public code-repository, skip next stage.
+
+### Deploy Gitlab
+
+**Warning:** Gitlab consumes lots of resources (and hell lot of money :) ) and even the base requirement may exceed your project quota on ArvanCloud PaaS. If you want to deploy Gitlab on Arvan PaaS make sure you have enough resource quota on PaaS panel.
+
+
+#### Preparing manifests
+
+In `gitlab` directory:
+
+**Notice:** All names have to be in lower case
+
+**Mandatory:**
+
+* Replace all `my-project-name`s with your project name in all gitlab route manifests and gitlab deployment (`gitlab-deployment.yaml`, `gitlab-route.yaml`, `gitlab-postgres-route.yaml`). (you can get your project name with command `arvan paas project`)
+
+* Replace `STRONGPOSTGRESPASS` with a random string used as database password in all files.
+
+**Optional:**
+
+* Replace all `my-gitlab` with your name of choice in files starts with `gitlab-*` (or leave it as is)
+
+* Replace all `my-gitlabpostgres` with your name of choice in files starts with `gitlab-*` (or leave it as is) (Notice: if you changed this name you had to change it in `gitlab-deployment.yaml` too)
+
+* Replace all `my-gitlabredis` with your name of choice in files starts with `gitlab-*` (or leave it as is) (Notice: if you changed this name you had to change it in `gitlab-deployment.yaml` too)
+
+* Change any resources with resource of your choice in deployment files. (Base resources for Gitlab are cpu:4, memory:8G, ephemeral-storage:4G and for posgres database cpu:3, memory:3G, ephemeral-storage:3G, persistent volume 5G, and for redis cpu:1, memory:1G, ephemeral-storage:1G)
+
+#### Deploy gitlab using cli
+
+Apply all gitlab manifests using arvan cli (assuming you are in gitlab directory of this example on your laptop):
+
+```bash
+arvan paas apply -f gitlab-deployment.yaml -f gitlab-postgres-pvc.yaml -f gitlab-postgres-service.yaml -f gitlab-pvc-etc.yaml -f gitlab-redis-deployment.yaml -f gitlab-route.yaml -f gitlab-postgres-deployment.yaml -f gitlab-postgres-route.yaml -f gitlab-pvc-base.yaml -f gitlab-pvc-log.yaml -f gitlab-redis-service.yaml -f gitlab-service.yaml
+```
+**Notice:** Bringing up new Gitlab may take few minutes, check gitlab pod logs to get what's going on (e.g. `arvan paas get pods` & `arvan paas logs -f my-gitlab-PODNAME`)
+
+You'll have access to Gitlab with the route you created. Get the address from your routes (`arvan paas get routes`).
+
+Go to your gitlab address and type a password for root user; then login by root user.
+
+## Deploy Docker Registry
+
+If you already have a docker registry or want to use a public one (like DockerHub), skip this step.
+
+It's easy to deploy a docker registry using arvan catalog (and we encourage you to do so) but here (for the sake of learning) we will deploy it using Kubernetes yaml manifests and arvan CLI.
+
+#### Preparing manifests
+
+In `docker-registry` directory:
+
+**Notice:** All names have to be in lower case
+
+**Mandatory:**
+
+* Replace `my-project-name` with your project name in docker registry route manifest. (you can get your project name with command `arvan paas project`)
+
+* Replace value of `htpasswd` with username and password of your choice generated by this command (default is `admin:password`):
+
+```bash
+htpasswd -Bbn username password
+```
+
+
+**Optional:**
+
+* Replace all `my-registry` with your name of choice in files starts with `docker-registry-*` (or leave it as is)
+
+* Change any resources with resource of your choice in deployment files. (Base resources for Docker Registry are cpu:0.5, memory:0.5G, ephemeral-storage:0.5G persistent volume 5G)
+
+#### Deploy docker registry using cli
+
+Apply all mysql manifests using arvan cli (assuming you are in mysql directory of this example on your laptop):
+
+```bash
+arvan paas apply -f docker-registry-configmap-auth.yaml -f docker-registry-configmap-config.yaml -f docker-registry-deployment.yaml -f docker-registry-pvc.yaml -f docker-registry-route.yaml -f docker-registry-service.yaml
+```
+You'll have access to your docker registry with the route you created. Get the address from your routes (`arvan paas get routes`).
+
+
+
+
+## Deploy MySQL
+
+If you need a database for your application, you can setup one using catalogs in [Arvan PaaS panel](https://npanel.arvancloud.com/paas/new) or deploy it your self.
+
+In our example we are going to deploy a MySQL instance using Kubernetes yaml manifests and arvan CLI instead of using catalog.
+
+
+#### Preparing manifests
+
+In `mysql` directory:
+
+**Notice:** All names have to be in lower case
+
+**Mandatory:**
+
+* Replace `my-project-name` with your project name in mysql route manifest. This will be used as the route for phpmyadmin. (you can get your project name with command `arvan paas project`)
+
+* Replace `SOMESTRONGMYSQLPASSWORD` with a random string used as database password in all files.
+
+**Optional:**
+
+* Replace all `my-mysql` with your name of choice in files starts with `mysql-*` (or leave it as is)
+
+* Change any resources with resource of your choice in deployment files. (Base resources for MySQL are cpu:1, memory:1G, ephemeral-storage:1G persistent volume 5G)
+
+#### Deploy mysql using cli
+
+Apply all mysql manifests using arvan cli (assuming you are in mysql directory of this example on your laptop):
+
+```bash
+arvan paas apply -f mysql-deployment.yaml -f mysql-pvc.yaml -f mysql-route.yaml -f mysql-service.yaml
+```
+You'll have access to your database using phpmyadmin with the route you created. Get the address from your routes (`arvan paas get routes`).
+
+## Dockerize the Sample project
+
+In your application directory (in our example OpenCart) add a Dockerfile (if you don't already have on).
+
+In our OpenCart we will add a Dockerfile with PHP7.3 as base image and push it to our new Gitlab repository.
+
+Here is an example Dockerfile for OpenCart:
+
+```
+FROM php:7.3-apache
+RUN a2enmod rewrite
+RUN set -xe \
+    && apt-get update \
+    && apt-get install -y libpng-dev libjpeg-dev libmcrypt-dev libzip-dev \
+    && rm -rf /var/lib/apt/lists/* \
+    && docker-php-ext-configure gd --with-png-dir=/usr --with-jpeg-dir=/usr \
+    && docker-php-ext-install gd mbstring mysqli zip \
+    && pecl install mcrypt-1.0.3 \
+    && docker-php-ext-enable mcrypt
+COPY upload/ /var/www/html/
+WORKDIR /var/www/html/
+RUN set -xe \
+    && chown -R www-data:www-data /var/www/
+```
+We add this to our project and push it to Gitlab (Replace the address with your repository and group inside it):
+
+```
+git add Dockerfile
+git commit -m "Dockerfile Added"
+```
+
+Since we cloned this project from github we need to change the origin:
+
+```
+git remote remove origin
+git remote add origin https://my-gitlab-my-project-name.apps.ir-thr-at1.arvan.run/example/onlineShop.git
+git push -u origin master
+```
+
+## Make a Build
+
+To bring-up a CI pipeline you need to have some application to build a docker image from a repository with a Dockerfile, and push the docker image to your registry; something like Jenkins or Gitlab-CI. But in PaaS you can't use these applications (because on public paas you can't have a privileged container), instead you can use [OpenShift's BuildConfig](https://www.arvancloud.com/help/fa/article/360013878019-%D8%A7%D8%B3%D8%AA%D9%81%D8%A7%D8%AF%D9%87-%D8%A7%D8%B2-Build-%D8%AF%D8%B1-%D9%BE%D9%84%D8%AA%D9%81%D8%B1%D9%85-%D8%A7%D8%A8%D8%B1%DB%8C-%D8%A2%D8%B1%D9%88%D8%A7%D9%86).
+
+If you want to build a docker image from a public repository, it would be a little easier to make a build file, but for private repositories and private registry you had to create some secrets. Here we explain the hard way.
+
+To access a private git repository you need to define a `sourceSecret` and to push docker image you built using `build` you need a `pushSecret`. Also, if you want to trigger the build whenever you push something to your repository, you need to create a `webhookSecret`
+
+
+first we create a `sourceSecret`. Assuming have access to your repository using username `myusername` and password `mypassword`, we can create a secret by name of  `gitsecret` (you can choose any name you want) with this command:
+
+```
+arvan paas create secret generic gitsecret --from-literal=username=myusername --from-literal=password=mypassword --type=kubernetes.io/basic-auth
+```
+
+Builds are special types of entities in OpenShift and PaaS, and you need to explicitly allow builder to access to your secret using link command:
+
+```
+arvan paas secrets link builder gitsecret
+```
+
+Next we create a secret for defining auth information of our docker registry. Assuming you can have access to your docker registry by username `myusername` and password `mypassword`, and docker registry address `https://my-registry-my-project-name.apps.ir-thr-at1.arvan.run/` and email `me@example.com` , you can create a secret by name `registrysecret` using this command:
+
+```bash
+arvan paas create secret docker-registry registrysecret --docker-server=https://my-registry-my-project-name.apps.ir-thr-at1.arvan.run/ --docker-username=myusername --docker-password=mypassword --docker-email=me@example.com
+```
+
+And let's make a `webhookSecret`. You can set any random string as value of `WebHookSecretKey` and then use this value in gitlab settings to connect gitlab to this build (just remember this value and we will explain the instruction later):
+
+```bash
+arvan paas create secret generic webhooksecret --from-literal=WebHookSecretKey=SOMELONGCOPLEXSTRING
+```
+
+Now let's make a `BuildConfig`. In the build file in this example, just change `uri` in `source>git` to your repository and change image name and repository to your address in `output>to>name`. You may also want to change the name of `BuildConfig` in `metadata>name`, here we named it `online-shop`. Now apply the `BuildConfig` using CLI:
+
+```bash
+arvan paas apply -f build.yaml
+```
+
+You can check status of the build by this command:
+
+```bash
+arvan paas get builds
+```
+
+You can check the log of the build by getting log of it's pod:
+
+```bash
+arvan paas get pods
+arvan paas logs -f shop-build-1-build
+```
+
+If build fails, fix the issue and start the build by `start-build` command. Here we named build `shop-build` so the command would be:
+
+```bash
+arvan paas start-build shop-build
+```
+
+## Deploy Your Application
+
+Since we where able to push the application to a docker registry, deploying it to ArvanCloud PaaS would be easy. Just create a `Deployment` manifest. Here we have an example deployment file for our OpenCart application, change names and docker image address and also resources then apply using cli:
+
+**Notice:** If you are using a private docker registry, use the same secret in build step (we named it `registrysecret`) here in `imagePullSecrets` field.
+
+```
+arvan paas apply -f deployment.yaml
+```
+
+Now we deployed our application, we need to make a service and a route to have access to it. Change `my-project-name` to your project name in `route.yaml` and change any other name you want:
+
+```
+arvan paas apply -f service.yaml
+arvan paas apply -f route.yaml
+```
+
+Now get the route of your application so you can have access over web:
+
+```
+arvan paas get routes
+```
+

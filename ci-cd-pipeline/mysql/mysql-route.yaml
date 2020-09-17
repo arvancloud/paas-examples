@@ -1,0 +1,17 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  labels:
+    app: my-mysql-phpmyadmin-route
+  name: my-mysql-phpmyadmin-route
+spec:
+  host: my-mysql-phpmyadmin-my-project-name.apps.ir-thr-at1.arvan.run
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+  to:
+    kind: Service
+    name: my-mysql-svc
+    weight: 100
+  wildcardPolicy: None
