@@ -152,21 +152,26 @@ In our OpenCart we will add a Dockerfile with PHP7.3 as base image and push it t
 Here is an example Dockerfile for OpenCart:
 
 ```
-FROM php:7.3-apache
+FROM php:7.2-apache
 RUN a2enmod rewrite
 RUN set -xe \
     && apt-get update \
-    && apt-get install -y libpng-dev libjpeg-dev libmcrypt-dev libzip-dev \
+    && apt-get install -y libpng-dev libjpeg-dev libmcrypt-dev \
     && rm -rf /var/lib/apt/lists/* \
     && docker-php-ext-configure gd --with-png-dir=/usr --with-jpeg-dir=/usr \
     && docker-php-ext-install gd mbstring mysqli zip \
-    && pecl install mcrypt-1.0.3 \
+    && pecl install mcrypt-1.0.1 \
     && docker-php-ext-enable mcrypt
 COPY upload/ /var/www/html/
 WORKDIR /var/www/html/
 RUN set -xe \
+    && mv config-dist.php config.php \
+    && mv admin/config-dist.php admin/config.php \
     && chown -R www-data:www-data /var/www/
 ```
+
+**Notice:**: Current version of OpenCart would fail with this `dockerfile`, we need to checkout to tag `3.0.2.0` then push it as master to new repository.
+
 We add this to our project and push it to Gitlab (Replace the address with your repository and group inside it):
 
 ```
@@ -259,7 +264,37 @@ arvan paas apply -f route.yaml
 
 Now get the route of your application so you can have access over web:
 
-```
+```bash
 arvan paas get routes
 ```
 
+If you are testing our example, by opening the application URL, you will face an install page, and in this page you need to enter mysql connection information. If you followed our instruction on deploying `mysql` or deployed one using catalog, you have a running mysql with phpmyadmin. To connect to your mysql database from your application you can use service name as database hostname. To get all services use this command:
+
+```bash
+arvan paas get services
+```
+
+In our example, our mysql has a service named `my-mysql-svc`, so we use this exact name as database hostname.
+
+Also you had to create a database in your mysql and set database in installation process of OpenCart. If you installed phpmyadmin, it would be easy to create a database, just login using phpmyadmin route.
+
+For database username and password, you can use same database username and password you entered during deploying of mysql, or you can create a specific user from phpmyadmin.
+
+Your CI/CD pipeline is (almost) done!
+
+Just one more thing: connecting gitlab to builder to trigger build with new commits.
+
+## Connect Gitlab to Builder with WebHook
+
+When you created the `BuildConfig` you defined a WebHook. You can check the address of this WebHook by describing BuildConfig. Get name of your BuildConfig with this command:
+
+```bash
+arvan paas get buildconfig
+```
+
+In our example we have a build config with name `shop-build`, so describe command would be:
+
+```bash
+arvan paas describe buildconfig shop-build
+```
+As you can see there is a WebHook URL in response of the command. Just replace `<secret>` with the secret you set in `Build` section add it to `Setting>WebHook` of your gitlab repository.
